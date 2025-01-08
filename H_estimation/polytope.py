@@ -7,7 +7,6 @@ from scipy.spatial import ConvexHull
 
 class polytope_estimation_offline():
     def __init__(self, Param):
-        #self.nu = Param["nu"]
         self.SV_Acc = Param["init_acc"]
         self.N = Param["N"] # Reachability Prediction Length
         self.T = Param["T"] # Sampling Interval
