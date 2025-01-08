@@ -4,6 +4,8 @@ import time
 import matplotlib.pyplot as plt
 
 from polytope import polytope_estimation_offline, polytope_estimation_MH, polytope_estimation_OR
+from ellipsoid import ellipsoid_estimation_offline, ellipsoid_estimation_online
+from zonotope import zonotope_estimation
 
 data_id = "08"
 track_id  = 14
@@ -115,4 +117,88 @@ def or_polytope_test():
     # Show the plot
     plt.show()
 
-offline_polytope_test()
+# test for offline ellipsoid
+def offline_ellipsoid_test():
+    lp_time = []
+    Init_Param = {"init_acc": acc_vals[:,0].reshape(2,1), "N":5, "T":0.25}
+    test_ellipsoid = ellipsoid_estimation_offline(Init_Param)
+
+    for i in range(1,N_Sam):
+        start_time = time.time() 
+        test_ellipsoid.ReachableSet(acc_vals[:,i].reshape(2,1),0,0)
+        end_time = time.time()
+        lp_time.append(end_time-start_time)
+        if i % 50 == 0:
+            pass
+            #test_ellipsoid.Plot_Ellipsoid()
+    # Assuming lp_time is already populated with times
+    plt.plot(range(1, N_Sam), lp_time, marker='o', linestyle='-', color='b')
+
+    # Add labels and title
+    plt.xlabel('Iteration')
+    plt.ylabel('Execution Time (seconds)')
+    plt.title('Execution Time of ReachableSet Across Iterations')
+
+    # Optionally, add grid and improve visual aesthetics
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+
+# test for online ellipsoid
+def online_ellipsoid_test():
+    lp_time = []
+    Init_Param = {"init_acc": acc_vals[:,0].reshape(2,1), "N":5, "T":0.25}
+    test_ellipsoid = ellipsoid_estimation_online(Init_Param)
+
+    for i in range(1,N_Sam):
+            start_time = time.time() 
+            test_ellipsoid.ReachableSet(acc_vals[:,i].reshape(2,1),0,0)
+            end_time = time.time()
+            lp_time.append(end_time-start_time)
+            if i % 50 == 0:
+                test_ellipsoid.Plot_Ellipsoid()
+
+    # Assuming lp_time is already populated with times
+    plt.plot(range(1, N_Sam), lp_time, marker='o', linestyle='-', color='b')
+
+    # Add labels and title
+    plt.xlabel('Iteration')
+    plt.ylabel('Execution Time (seconds)')
+    plt.title('Execution Time of ReachableSet Across Iterations')
+
+    # Optionally, add grid and improve visual aesthetics
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+
+# test for zonotope
+def offline_zonotope_test():
+    lp_time = []
+    Init_Param = {"init_acc": acc_vals[:,0].reshape(2,1), "N":5, "T":0.25}
+    test_ellipsoid = zonotope_estimation(Init_Param)
+
+    for i in range(1,N_Sam):
+            start_time = time.time() 
+            test_ellipsoid.ReachableSet(acc_vals[:,i].reshape(2,1),0,0)
+            end_time = time.time()
+            lp_time.append(end_time-start_time)
+            if i % 50 == 0:
+                test_ellipsoid.Plot_Zonotope()
+
+    # Assuming lp_time is already populated with times
+    plt.plot(range(1, N_Sam), lp_time, marker='o', linestyle='-', color='b')
+
+    # Add labels and title
+    plt.xlabel('Iteration')
+    plt.ylabel('Execution Time (seconds)')
+    plt.title('Execution Time of ReachableSet Across Iterations')
+
+    # Optionally, add grid and improve visual aesthetics
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+
+offline_zonotope_test()
