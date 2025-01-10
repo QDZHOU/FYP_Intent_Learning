@@ -55,14 +55,20 @@ class polytope_estimation_offline():
 
 
     def Generate_Polytope(self, radius, num_vertices):
-        angles = np.linspace(0, 2 * np.pi, num_vertices, endpoint=False)  # Divide circle into 8 parts
-        x_coords = radius * np.cos(angles)
-        y_coords = radius * np.sin(angles)
+        if num_vertices != 4:
+            angles = np.linspace(0, 2 * np.pi, num_vertices, endpoint=False)
+            x_coords = radius * np.cos(angles)
+            y_coords = radius * np.sin(angles)
 
-        vertices = np.column_stack((x_coords, y_coords))
-        U_SV_Poly = Polytope(vertices)
+            vertices = np.column_stack((x_coords, y_coords))
+            U_SV_Poly = Polytope(vertices)
 
-        return U_SV_Poly
+            return U_SV_Poly
+        else:
+            low_bound_control  = (-radius, -radius)
+            up_bound_control   = (radius,   radius)
+            U_SV_Poly = Polytope(lb = low_bound_control, ub = up_bound_control)
+            return U_SV_Poly
     
 
     def Offline_LP(self):
@@ -191,14 +197,20 @@ class polytope_estimation_MH():
 
 
     def Generate_Polytope(self, radius, num_vertices):
-        angles = np.linspace(0, 2 * np.pi, num_vertices, endpoint=False)  # Divide circle into 8 parts
-        x_coords = radius * np.cos(angles)
-        y_coords = radius * np.sin(angles)
+        if num_vertices != 4:
+            angles = np.linspace(0, 2 * np.pi, num_vertices, endpoint=False)
+            x_coords = radius * np.cos(angles)
+            y_coords = radius * np.sin(angles)
 
-        vertices = np.column_stack((x_coords, y_coords))
-        U_SV_Poly = Polytope(vertices)
+            vertices = np.column_stack((x_coords, y_coords))
+            U_SV_Poly = Polytope(vertices)
 
-        return U_SV_Poly
+            return U_SV_Poly
+        else:
+            low_bound_control  = (-radius, -radius)
+            up_bound_control   = (radius,   radius)
+            U_SV_Poly = Polytope(lb = low_bound_control, ub = up_bound_control)
+            return U_SV_Poly
     
 
     def MH_LP(self):
@@ -325,14 +337,20 @@ class polytope_estimation_OR():
 
 
     def Generate_Polytope(self, radius, num_vertices):
-        angles = np.linspace(0, 2 * np.pi, num_vertices, endpoint=False)  # Divide circle into 8 parts
-        x_coords = radius * np.cos(angles)
-        y_coords = radius * np.sin(angles)
+        if num_vertices != 4:
+            angles = np.linspace(0, 2 * np.pi, num_vertices, endpoint=False)
+            x_coords = radius * np.cos(angles)
+            y_coords = radius * np.sin(angles)
 
-        vertices = np.column_stack((x_coords, y_coords))
-        U_SV_Poly = Polytope(vertices)
+            vertices = np.column_stack((x_coords, y_coords))
+            U_SV_Poly = Polytope(vertices)
 
-        return U_SV_Poly
+            return U_SV_Poly
+        else:
+            low_bound_control  = (-radius, -radius)
+            up_bound_control   = (radius,   radius)
+            U_SV_Poly = Polytope(lb = low_bound_control, ub = up_bound_control)
+            return U_SV_Poly
     
 
     def OR_LP(self):
