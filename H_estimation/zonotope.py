@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
+from scipy.optimize import minimize
 
 class zonotope_estimation():
     def __init__(self, Param):
@@ -127,3 +128,99 @@ class zonotope_estimation():
     
     def Return(self):
         pass
+
+class zonotope_estimation_min_area():
+    def __init__(self, Param):
+        self.SV_Acc = Param["init_acc"]
+        self.N = Param["N"] # Reachability Prediction Length
+        self.T = Param["T"] # Sampling Interval
+
+    def ReachableSet(self,SV_Acc_new, SV_Pos_new, SV_Vel_new):
+        self.Offline(SV_Acc_new)
+
+
+    def minimize_convex_hull_area(self,convex_points, center_initial=np.array([0, 0])):
+        # Objective function to minimize: area of the convex hull
+        def objective(center):
+            # Apply the transformation to get the rotated points
+            rotated_x = -convex_points[0, :] + 2 * center[0]
+            rotated_y = -convex_points[1, :] + 2 * center[1]
+            rotated_convex_points = np.array([rotated_x, rotated_y])
+            
+            # Stack the original convex points with the rotated points
+            stacked_points = np.hstack((convex_points, rotated_convex_points))
+            
+            # Compute the convex hull of the stacked points
+            hull = ConvexHull(stacked_points.T)  # Transpose to (N, 2)
+            
+            # Return the area of the convex hull
+            return hull.area
+
+        # Minimize the area of the convex hull by optimizing the center
+        result = minimize(objective, center_initial, method='BFGS')
+
+        # Optimized center
+        optimized_center = result.x
+        
+        # Calculate the minimized convex hull area
+        rotated_x = -convex_points[0, :] + 2 * optimized_center[0]
+        rotated_y = -convex_points[1, :] + 2 * optimized_center[1]
+        rotated_convex_points = np.array([rotated_x, rotated_y])
+
+        stacked_points = np.hstack((convex_points, rotated_convex_points))
+        hull = ConvexHull(stacked_points.T)  # Transpose to (N, 2)
+        minimized_area = hull.area
+        
+        return optimized_center, minimized_area
+    
+    def Offline(self, SV_Acc_new):
+        self.SV_Acc = np.hstack((self.SV_Acc,SV_Acc_new))
+        self.N_Sam = self.SV_Acc.shape[1]
+        if self.N_Sam>=3:
+            points = self.SV_Acc.T
+            hull = ConvexHull(points)
+            convex_points = points[hull.vertices].T
+            self.convex_points = convex_points
+            self.center, area = self.minimize_convex_hull_area(convex_points)
+            rotated_x = -self.convex_points[0,:]+2*self.center[0]
+            rotated_y = -self.convex_points[1,:]+2*self.center[1]
+            rotated_convex_points = np.array([rotated_x,rotated_y])
+            self.stacked_convex_points = np.hstack((self.convex_points, rotated_convex_points))
+
+
+
+    def Plot_Zonotope(self):
+        stacked_points = self.stacked_convex_points
+        plt.figure()
+        #sample points
+        plt.scatter(self.SV_Acc[0,:],self.SV_Acc[1,:],marker='x',color = 'black')
+
+
+        #convexhull
+        points = self.SV_Acc.T
+        hull = ConvexHull(points)
+        label_added = False 
+        for simplex in hull.simplices:
+            if not label_added:
+                plt.plot(points[simplex, 0], points[simplex, 1], 'r-', label="Convex Hull")
+                label_added = True 
+            else:
+                plt.plot(points[simplex, 0], points[simplex, 1], 'r-')
+
+        points = stacked_points.T
+        hull = ConvexHull(points)
+        label_added = False 
+        for simplex in hull.simplices:
+            if not label_added:
+                plt.plot(points[simplex, 0], points[simplex, 1], 'g-', label="Zonotope")
+                label_added = True 
+            else:
+                plt.plot(points[simplex, 0], points[simplex, 1], 'g-')
+
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.title("Zonotope Estimation")
+        plt.xlabel("Long. Acc.")
+        plt.ylabel("Lat. Acc.")
+        plt.grid(True)
+        plt.legend()
+        plt.show()
