@@ -3,6 +3,8 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
+from pytope import Polytope
+import matplotlib.image as mpimg
 
 from polytope import polytope_estimation_offline, polytope_estimation_MH, polytope_estimation_OR
 from ellipsoid import ellipsoid_estimation_offline, ellipsoid_estimation_online
@@ -31,6 +33,36 @@ xVel = filtered_data["xVelocity"].to_numpy()
 yVel = filtered_data["yVelocity"].to_numpy()
 velocity_vals = np.vstack((xVel,yVel))
 
+image_param = {
+  "datasets": {
+    "ind": {
+      "scale_down_factor": 12,  
+      "relevant_areas": { 
+        "1": {
+          "x_lim": [2000, 11500],  
+          "y_lim": [9450, 0]  
+        },
+        "2": {
+          "x_lim": [0, 12500],
+          "y_lim": [7400, 0]
+        },
+        "3": {
+          "x_lim": [0, 11500],
+          "y_lim": [9365, 0]
+        },
+        "4": {
+          "x_lim": [2700, 15448],
+          "y_lim": [9365, 0]
+        }
+      }
+    }
+  }
+}
+
+x_lim_0 = 2000/12
+x_lim_1 = 11500/12
+y_lim_0 = 9450/12
+y_lim_1 = 0/12
 
 # # Assuming lp_time is already populated with times
 # plt.plot(range(1, N_Sam), lp_time, marker='o', linestyle='-', color='b')
@@ -67,35 +99,62 @@ def offline_polytope_test():
 # test for mh(moving horizon) polytope
 def mh_polytope_test(mh_size):
     lp_time = []
-    Init_Param = {"init_acc": acc_vals[:,0].reshape(2,1), "N":5, "T":0.25, "radius": 10, "num_vertices": 4, "MH_size": mh_size}
+    Init_Param = {"init_acc": acc_vals[:,0].reshape(2,1), "N":5, "T":0.25, "radius": 10, "num_vertices": 8, "MH_size": mh_size}
     test_polytope = polytope_estimation_MH(Init_Param)
+
+    SV_x = filtered_data["xCenter"].to_numpy()
+    SV_y = filtered_data["yCenter"].to_numpy()
+    fig, ax = plt.subplots()
+    img   = mpimg.imread(background_filepath)
 
     for i in range(1,N_Sam):
         start_time = time.time() 
-        test_polytope.ReachableSet(acc_vals[:,i].reshape(2,1),0,0)
+        tmp = test_polytope.ReachableSet(acc_vals[:,i].reshape(2,1),position_vals[:,i].reshape(2,1),velocity_vals[:,i].reshape(2,1))
         end_time = time.time()
         lp_time.append(end_time-start_time)
-        if i % 50 == 0:
-            pass
-            #test_polytope.Plot_Polytope()
+        if i % 20 == 0 and i > mh_size:
+            print(tmp[2].b)
+            for i in range(5):
+                polytopetmp = Polytope(tmp[i].A, tmp[i].b/0.00814636091724916/12)
+                polytopetmp.plot(color = 'b', alpha = 0.3)
+
+    plt.imshow(img,alpha = 0.6, extent=[0, img.shape[1], -img.shape[0], 0])
+    plt.plot(SV_x/0.00814636091724916/12, SV_y/0.00814636091724916/12)
+    ax.set_xlim([x_lim_0,x_lim_1])
+    ax.set_ylim([-y_lim_0,-y_lim_1])
+    plt.show()
     
     return lp_time, test_polytope
 
 # test for or(online recursive) polytope
 def or_polytope_test():
     lp_time = []
-    Init_Param = {"init_acc": acc_vals[:,0].reshape(2,1), "N":5, "T":0.25, "radius": 8, "num_vertices": 4}
+    Init_Param = {"init_acc": acc_vals[:,0].reshape(2,1), "N":5, "T":0.25, "radius": 8, "num_vertices": 5}
     test_polytope = polytope_estimation_OR(Init_Param)
+
+    SV_x = filtered_data["xCenter"].to_numpy()
+    SV_y = filtered_data["yCenter"].to_numpy()
+    fig, ax = plt.subplots()
+    img   = mpimg.imread(background_filepath)
 
     for i in range(1,N_Sam):
         start_time = time.time() 
-        test_polytope.ReachableSet(acc_vals[:,i].reshape(2,1),0,0)
+        tmp = test_polytope.ReachableSet(acc_vals[:,i].reshape(2,1),position_vals[:,i].reshape(2,1),velocity_vals[:,i].reshape(2,1))
         end_time = time.time()
         lp_time.append(end_time-start_time)
-        if i % 50 == 0:
-            pass
-            #test_polytope.Plot_Polytope()
-    
+
+        if i % 50 == 0 or i == N_Sam-1:
+            for i in range(5):
+                polytopetmp = Polytope(tmp[i].A, tmp[i].b/0.00814636091724916/12)
+                polytopetmp.plot(color = 'b', alpha = 0.3)
+
+    plt.imshow(img,alpha = 0.6, extent=[0, img.shape[1], -img.shape[0], 0])
+    plt.plot(SV_x/0.00814636091724916/12, SV_y/0.00814636091724916/12)
+    ax.set_xlim([x_lim_0,x_lim_1])
+    ax.set_ylim([-y_lim_0,-y_lim_1])
+    # ax.set_xlim([0,1500])
+    # ax.set_ylim([-1500,0])
+    plt.show()
     return lp_time, test_polytope
 
 # test for offline ellipsoid
@@ -321,4 +380,4 @@ def plot_time_complexity_zonotope():
     # Show the plot
     plt.show()
 
-plot_time_complexity_zonotope()
+lp_time, test_polytope = or_polytope_test()
