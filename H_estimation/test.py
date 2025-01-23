@@ -22,6 +22,8 @@ filtered_data = tracks_data[tracks_data['trackId'] == track_id]
 
 xAcc = filtered_data['xAcceleration'].to_numpy()
 yAcc = filtered_data['yAcceleration'].to_numpy()
+# xAcc = filtered_data['lonAcceleration'].to_numpy()
+# yAcc = filtered_data['latAcceleration'].to_numpy()
 acc_vals= np.vstack((xAcc,yAcc))
 N_Sam = acc_vals.shape[1]
 
@@ -31,7 +33,22 @@ position_vals = np.vstack((xPos,yPos))
 
 xVel = filtered_data["xVelocity"].to_numpy()
 yVel = filtered_data["yVelocity"].to_numpy()
+# xVel = filtered_data["lonVelocity"].to_numpy()
+# yVel = filtered_data["latVelocity"].to_numpy()
 velocity_vals = np.vstack((xVel,yVel))
+
+yaw = filtered_data["heading"].to_numpy()
+
+road_vertices = np.array([
+    [270, -78],
+    [338, -15],
+    [786, -657],
+    [857, -592]
+])
+Drive_Area = Polytope(road_vertices*(0.00814636091724916*12))
+Drive_Area_visual = Polytope(road_vertices)
+A_road = Drive_Area.A
+b_road = Drive_Area.b
 
 image_param = {
   "datasets": {
@@ -126,11 +143,41 @@ def mh_polytope_test(mh_size):
     
     return lp_time, test_polytope
 
+Param = {
+    "init_acc": acc_vals[:,0].reshape(2,1),
+    "N": 5, # Reachability Prediction Length
+    "T": 0.25, # Sampling Interval
+    "radius": 8,
+    "num_vertices": 5,
+    "l_f": 1.5, # Distance from CoG to Front Axle
+    "l_r": 1.5, # Distance from CoG to Rear Axle
+    "l_veh": 4.7, # length of vehicle
+    "w_veh": 1.8, # width of vehicle
+    "DEV": 5,
+    "Q1": 1, # steering wheel angle
+    "Q2": 1, # longitudinal jerk
+    "Q3": 1, # long. velocity error
+    "Q4": 5, # long. pos. error
+    "Q5": 5, # lat. pos. error
+    "Q6": 2, # heading. error
+    "Q7": 300,
+    "d_min": 2,
+    "A_road": A_road,
+    "b_road": b_road,
+    "v_low": 0,
+    "v_up": 13,
+    "acc_low": -5,
+    "acc_up": 5,
+    "delta_low": -0.38,
+    "delta_up": 0.38,
+    "RefSpeed": 0,
+    "RefPos": [-4930,5640,0] # 824,-597->342,-46
+}
+
 # test for or(online recursive) polytope
 def or_polytope_test():
     lp_time = []
-    Init_Param = {"init_acc": acc_vals[:,0].reshape(2,1), "N":5, "T":0.25, "radius": 8, "num_vertices": 5}
-    test_polytope = polytope_estimation_OR(Init_Param)
+    test_polytope = polytope_estimation_OR(Param)
 
     SV_x = filtered_data["xCenter"].to_numpy()
     SV_y = filtered_data["yCenter"].to_numpy()
@@ -139,7 +186,7 @@ def or_polytope_test():
 
     for i in range(1,N_Sam):
         start_time = time.time() 
-        tmp = test_polytope.ReachableSet(acc_vals[:,i].reshape(2,1),position_vals[:,i].reshape(2,1),velocity_vals[:,i].reshape(2,1))
+        G,g,tmp = test_polytope.ReachableSet(acc_vals[:,i].reshape(2,1),position_vals[:,i].reshape(2,1),velocity_vals[:,i].reshape(2,1))
         end_time = time.time()
         lp_time.append(end_time-start_time)
 
@@ -147,6 +194,8 @@ def or_polytope_test():
             for i in range(5):
                 polytopetmp = Polytope(tmp[i].A, tmp[i].b/0.00814636091724916/12)
                 polytopetmp.plot(color = 'b', alpha = 0.3)
+    
+    Drive_Area_visual.plot(color = 'r', alpha = 0.3)
 
     plt.imshow(img,alpha = 0.6, extent=[0, img.shape[1], -img.shape[0], 0])
     plt.plot(SV_x/0.00814636091724916/12, SV_y/0.00814636091724916/12)
