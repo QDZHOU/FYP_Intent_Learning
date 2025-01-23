@@ -164,6 +164,7 @@ class polytope_estimation_MH():
         self.N_Sam = self.SV_Acc.shape[1]
 
         self.LP = self.MH_LP()
+        self.MPCFormulation = self.MPCFormulation()
         
 
     def ReachableSet(self,SV_Acc_new, SV_Pos_new, SV_Vel_new):
@@ -286,11 +287,33 @@ class polytope_estimation_OR():
     def __init__(self, Param):
         #self.nu = Param["nu"]
         self.SV_Acc = Param["init_acc"]
-        self.N = Param["N"] # Reachability Prediction Length
-        self.T = Param["T"] # Sampling Interval
+        self.N = Param["N"] 
+        self.T = Param["T"] 
         self.radius = Param["radius"]
         self.num_vertices = Param["num_vertices"]
-
+        self.l_f = Param["l_f"] 
+        self.l_r = Param["l_r"] 
+        self.l_veh = Param["l_veh"] 
+        self.w_veh = Param["w_veh"] 
+        self.Q1 = Param["Q1"]
+        self.Q2 = Param["Q2"]
+        self.Q3 = Param["Q3"]
+        self.Q4 = Param["Q4"]
+        self.Q5 = Param["Q5"]
+        self.Q6 = Param["Q6"]
+        self.Q7 = Param["Q7"]
+        self.d_min = Param["d_min"]
+        self.A_road = Param["A_road"]
+        self.b_road = Param["b_road"]
+        self.v_low = Param["v_low"]
+        self.v_up = Param["v_up"]
+        self.acc_low = Param["acc_low"]
+        self.acc_up = Param["acc_up"]
+        self.delta_low = Param["delta_low"]
+        self.delta_up = Param["delta_up"]
+        self.RefSpeed = Param["RefSpeed"]
+        self.RefPos = Param["RefPos"]
+        
         self.U_SV_Poly = self.Generate_Polytope(self.radius,self.num_vertices)
         self.H = self.U_SV_Poly.A 
         self.h = self.U_SV_Poly.b 
@@ -303,7 +326,21 @@ class polytope_estimation_OR():
 
         self.LP = self.OR_LP()
         self.theta_pre,self.y_pre,self.rho_pre = self.LP(np.array([[0],[0]]),np.zeros((self.nu,1)),0.1*np.ones((self.nv,1)))
+        self.MPC = self.MPCFormulation()
 
+    def Return(self,SV_Acc_new, SV_Pos_new, SV_Vel_new, current_x_EV):
+        RefSpeed = self.RefSpeed
+        RefPos = self.RefPos
+        G, g, Occupancy_SV = self.ReachableSet(SV_Acc_new, SV_Pos_new, SV_Vel_new)
+
+        RefXPos = RefPos[0]
+        RefYPos = RefPos[1]
+        RefPhi  = RefPos[2]
+        Trajectory_k, Control_k, J_k, s_k = self.MPC(G, g, current_x_EV, RefSpeed, RefXPos, RefYPos, RefPhi)
+        Trajectory_k = Trajectory_k.full( )
+        Control_k = Control_k.full( )
+
+        return Control_k[:, 0], Trajectory_k, J_k.full( ), Occupancy_SV
 
 
     def ReachableSet(self,SV_Acc_new, SV_Pos_new, SV_Vel_new):
@@ -316,6 +353,8 @@ class polytope_estimation_OR():
         Occupancy_SV = list()
         x_t = np.array([SV_Pos_new[0], SV_Vel_new[0], SV_Pos_new[1], SV_Vel_new[1]])
         Reachable_Set.append(x_t)
+        G = np.zeros((4, 2*self.N)) 
+        g = np.zeros((4, self.N))
 
         for t in range(1,self.N+1):
             if t == 1:
@@ -328,11 +367,13 @@ class polytope_estimation_OR():
             occupancy_SV_t = Polytope(vertex_xy) 
             occupancy_SV_t.minimize_V_rep( )
             temp_poly   = occupancy_SV_t
+            G[:, 2*t-2:2*t] = temp_poly.A
+            g[:, t-1]       = temp_poly.b.reshape(4, )
 
             Occupancy_SV.append(temp_poly)
             Reachable_Set.append(reachable_set_t)
 
-        return Occupancy_SV
+        return G, g, Occupancy_SV
 
     def MPCFormulation(self):
         d_min = self.d_min          #minimum distance
@@ -507,6 +548,16 @@ class polytope_estimation_OR():
         plt.grid(True)
         plt.show()
 
-    
-    def Return(self):
-        pass
+    def vehicle_model(self, w, delta, eta):
+
+        l_f = self.l_f
+        l_r = self.l_r
+        
+        beta = np.arctan(l_r/(l_f + l_r)*np.tan(delta))
+        x_dot   = w[3]*np.cos(w[2] + beta) 
+        y_dot   = w[3]*np.sin(w[2] + beta)
+        phi_dot = w[3]/(l_r)*np.sin(beta)
+        v_dot = w[4]
+        a_dot = eta
+        
+        return ca.vertcat(x_dot, y_dot, phi_dot, v_dot, a_dot)
