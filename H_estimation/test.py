@@ -429,4 +429,12 @@ def plot_time_complexity_zonotope():
     # Show the plot
     plt.show()
 
-lp_time, test_polytope = or_polytope_test()
+def plot_img():
+    fig, ax = plt.subplots()
+    img   = mpimg.imread(background_filepath)
+    plt.imshow(img,alpha = 1, extent=[0, img.shape[1], -img.shape[0], 0])
+    ax.set_xlim([x_lim_0,x_lim_1])
+    ax.set_ylim([-y_lim_0,-y_lim_1])
+    plt.show()
+
+plot_img()
