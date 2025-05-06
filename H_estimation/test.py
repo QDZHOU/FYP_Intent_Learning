@@ -38,6 +38,8 @@ yVel = filtered_data["yVelocity"].to_numpy()
 velocity_vals = np.vstack((xVel,yVel))
 
 yaw = filtered_data["heading"].to_numpy()
+recordingMeta = pd.read_csv(recordingMeta_filepath)
+orthoPxToMeter = recordingMeta["orthoPxToMeter"].iloc[0]
 
 road_vertices = np.array([
     [270, -78],
@@ -45,10 +47,6 @@ road_vertices = np.array([
     [786, -657],
     [857, -592]
 ])
-Drive_Area = Polytope(road_vertices*(0.00814636091724916*12))
-Drive_Area_visual = Polytope(road_vertices)
-A_road = Drive_Area.A
-b_road = Drive_Area.b
 
 image_param = {
   "datasets": {
@@ -76,10 +74,20 @@ image_param = {
   }
 }
 
-x_lim_0 = 2000/12
-x_lim_1 = 11500/12
-y_lim_0 = 9450/12
-y_lim_1 = 0/12
+
+location_id = "2"
+scale_down_factor = image_param["datasets"]["ind"]["scale_down_factor"]
+x_lim_0 = image_param["datasets"]["ind"]["relevant_areas"][location_id]["x_lim"][0]/scale_down_factor
+x_lim_1 = image_param["datasets"]["ind"]["relevant_areas"][location_id]["x_lim"][1]/scale_down_factor
+y_lim_0 = image_param["datasets"]["ind"]["relevant_areas"][location_id]["y_lim"][0]/scale_down_factor
+y_lim_1 = image_param["datasets"]["ind"]["relevant_areas"][location_id]["y_lim"][1]/scale_down_factor
+image_to_real = orthoPxToMeter*scale_down_factor
+real_to_image = 1/image_to_real
+
+Drive_Area = Polytope(road_vertices*image_to_real)
+Drive_Area_visual = Polytope(road_vertices)
+A_road = Drive_Area.A
+b_road = Drive_Area.b
 
 # # Assuming lp_time is already populated with times
 # plt.plot(range(1, N_Sam), lp_time, marker='o', linestyle='-', color='b')
@@ -433,8 +441,10 @@ def plot_img():
     fig, ax = plt.subplots()
     img   = mpimg.imread(background_filepath)
     plt.imshow(img,alpha = 1, extent=[0, img.shape[1], -img.shape[0], 0])
-    ax.set_xlim([x_lim_0,x_lim_1])
-    ax.set_ylim([-y_lim_0,-y_lim_1])
+    # ax.set_xlim([x_lim_0,x_lim_1])
+    # ax.set_ylim([-y_lim_0,-y_lim_1])
+    ax.set_xlim([-100,1200])
+    ax.set_ylim([-700,200])
     plt.show()
 
 plot_img()
