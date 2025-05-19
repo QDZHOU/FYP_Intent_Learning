@@ -4,6 +4,57 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pytope import Polytope
 from scipy.spatial import ConvexHull
+import cdd
+
+class ExactPolytope(Polytope):
+    def minimize_V_rep(self):
+        """Minimize the number of vertices with robust error handling"""
+        from scipy.spatial import ConvexHull
+        import numpy as np
+        
+        # Add small random perturbation to break degeneracy
+        eps = 1e-10
+        V_perturbed = self.V + np.random.uniform(-eps, eps, size=self.V.shape)
+        
+        try:
+            # First try: Basic computation
+            i_V_minimal = ConvexHull(self.V).vertices
+        except Exception as e1:
+            try:
+                # Second try: Use perturbed vertices
+                i_V_minimal = ConvexHull(V_perturbed).vertices
+            except Exception as e2:
+                try:
+                    # Third try: Use QHull options for numerical problems
+                    i_V_minimal = ConvexHull(self.V, qhull_options='Qt QJ Pp').vertices
+                except Exception as e3:
+                    # If all attempts fail, keep original vertices
+                    print("Warning: Could not minimize vertices due to numerical issues. Keeping original vertices.")
+                    return
+        
+        self.V = self.V[i_V_minimal, :]
+
+    def determine_V_rep(self):
+        """Determine vertex representation using exact arithmetic"""
+        if not self.rep == 'H':
+            raise ValueError('Polytope must be in H-representation')
+        
+        # Use exact arithmetic with cdd
+        mat = cdd.Matrix(np.hstack((self.h.reshape(-1, 1), -self.H)), number_type='fraction')
+        mat.rep_type = cdd.RepType.INEQUALITY
+        
+        # Compute V-representation
+        poly = cdd.Polyhedron(mat)
+        ext = np.array(poly.get_generators())
+        
+        # Filter out rays/lines if present (we only want vertices)
+        vertices = ext[ext[:, 0] == 1][:, 1:]  # Only keep vertices
+        
+        if vertices.size > 0:
+            self.V = vertices
+            self.rep = 'V'
+        else:
+            raise ValueError('No vertices found in V-representation')
 
 class polytope_estimation_offline():
     def __init__(self, Param):
@@ -61,13 +112,13 @@ class polytope_estimation_offline():
             y_coords = radius * np.sin(angles)
 
             vertices = np.column_stack((x_coords, y_coords))
-            U_SV_Poly = Polytope(vertices)
+            U_SV_Poly = ExactPolytope(vertices)
 
             return U_SV_Poly
         else:
             low_bound_control  = (-radius, -radius)
             up_bound_control   = (radius,   radius)
-            U_SV_Poly = Polytope(lb = low_bound_control, ub = up_bound_control)
+            U_SV_Poly = ExactPolytope(lb = low_bound_control, ub = up_bound_control)
             return U_SV_Poly
     
 
@@ -203,13 +254,13 @@ class polytope_estimation_MH():
             y_coords = radius * np.sin(angles)
 
             vertices = np.column_stack((x_coords, y_coords))
-            U_SV_Poly = Polytope(vertices)
+            U_SV_Poly = ExactPolytope(vertices)
 
             return U_SV_Poly
         else:
             low_bound_control  = (-radius, -radius)
             up_bound_control   = (radius,   radius)
-            U_SV_Poly = Polytope(lb = low_bound_control, ub = up_bound_control)
+            U_SV_Poly = ExactPolytope(lb = low_bound_control, ub = up_bound_control)
             return U_SV_Poly
     
 
@@ -364,7 +415,7 @@ class polytope_estimation_OR():
             
             vertex = reachable_set_t.V
             vertex_xy = np.delete(vertex, [1, 3], axis = 1)
-            occupancy_SV_t = Polytope(vertex_xy) 
+            occupancy_SV_t = ExactPolytope(vertex_xy) 
             occupancy_SV_t.minimize_V_rep( )
             temp_poly   = occupancy_SV_t
             G[:, 2*t-2:2*t] = temp_poly.A
@@ -475,13 +526,13 @@ class polytope_estimation_OR():
             y_coords = radius * np.sin(angles)
 
             vertices = np.column_stack((x_coords, y_coords))
-            U_SV_Poly = Polytope(vertices)
+            U_SV_Poly = ExactPolytope(vertices)
 
             return U_SV_Poly
         else:
             low_bound_control  = (-radius, -radius)
             up_bound_control   = (radius,   radius)
-            U_SV_Poly = Polytope(lb = low_bound_control, ub = up_bound_control)
+            U_SV_Poly = ExactPolytope(lb = low_bound_control, ub = up_bound_control)
             return U_SV_Poly
     
 
@@ -517,7 +568,7 @@ class polytope_estimation_OR():
 
     def OR(self,SV_Acc_new):
         self.theta_pre,self.y_pre,self.rho_pre = self.LP(SV_Acc_new,self.y_pre,self.theta_pre)
-        U_Hat_Poly = Polytope(self.H, self.theta_pre)+self.y_pre
+        U_Hat_Poly = ExactPolytope(self.H, self.theta_pre)+self.y_pre
 
         return U_Hat_Poly
     
