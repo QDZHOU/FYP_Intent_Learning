@@ -13,10 +13,10 @@ from zonotope import zonotope_estimation,zonotope_estimation_min_area
 data_id = "08"
 track_id  = 14
 
-background_filepath = f"../data/{data_id}_background.png"
-recordingMeta_filepath = f"../data/{data_id}_recordingMeta.csv"
-tracks_filepath = f"../data/{data_id}_tracks.csv"
-tracksMeta_filepath = f"../data/{data_id}_tracksMeta.csv"
+background_filepath = f"../../data/{data_id}_background.png"
+recordingMeta_filepath = f"../../data/{data_id}_recordingMeta.csv"
+tracks_filepath = f"../../data/{data_id}_tracks.csv"
+tracksMeta_filepath = f"../../data/{data_id}_tracksMeta.csv"
 tracks_data = pd.read_csv(tracks_filepath)
 filtered_data = tracks_data[tracks_data['trackId'] == track_id]
 
@@ -433,8 +433,10 @@ def plot_img():
     fig, ax = plt.subplots()
     img   = mpimg.imread(background_filepath)
     plt.imshow(img,alpha = 1, extent=[0, img.shape[1], -img.shape[0], 0])
-    ax.set_xlim([x_lim_0,x_lim_1])
-    ax.set_ylim([-y_lim_0,-y_lim_1])
+    # ax.set_xlim([x_lim_0,x_lim_1])
+    # ax.set_ylim([-y_lim_0,-y_lim_1])
+    ax.set_xlim([100,1000])
+    ax.set_ylim([-800,100])
     plt.show()
 
 plot_img()
